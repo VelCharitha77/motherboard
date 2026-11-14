@@ -74,6 +74,64 @@ export default function LearnPage() {
   const attendanceRecords = selectedCohort ? db.learn.listAttendance({ cohortId: selectedCohort.id }) : [];
   const myAttendance = currentUser ? attendanceRecords.filter((a) => a.userId === currentUser.id) : [];
 
+  // AI Study Tutor & Instructor Assistant state
+  const [aiTutorQuestion, setAiTutorQuestion] = useState('');
+  const [aiTutorAnswer, setAiTutorAnswer] = useState<string | null>(null);
+  const [aiTutorLoading, setAiTutorLoading] = useState(false);
+  const [aiQuizDraft, setAiQuizDraft] = useState<string | null>(null);
+
+  const handleAskTutor = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!aiTutorQuestion || !activeLesson) return;
+    setAiTutorLoading(true);
+    setAiTutorAnswer(null);
+    try {
+      const res = await fetch('/api/ai', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          feature: 'learn_study_helper',
+          userId: currentUser?.id,
+          role: 'student',
+          lessonTitle: activeLesson.title,
+          lessonContent: activeLesson.content,
+          userQuestion: aiTutorQuestion,
+          locale,
+        }),
+      });
+      const data = await res.json();
+      setAiTutorAnswer(data.text || data.error || 'AI Tutor unavailable.');
+    } catch {
+      setAiTutorAnswer('Tutor Tip: Break this problem down into smaller steps. Check your HTML opening and closing tags first!');
+    } finally {
+      setAiTutorLoading(false);
+    }
+  };
+
+  const handleDraftQuiz = async () => {
+    if (!activeLesson) return;
+    setAiTutorLoading(true);
+    try {
+      const res = await fetch('/api/ai', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          feature: 'instructor_quiz',
+          userId: currentUser?.id,
+          role: 'instructor',
+          lessonTitle: activeLesson.title,
+          lessonContent: activeLesson.content,
+        }),
+      });
+      const data = await res.json();
+      setAiQuizDraft(data.text);
+    } catch {
+      setAiQuizDraft('Sample Quiz Question:\n1. Which HTML element wraps navigation links?\nA) <nav> (Correct)\nB) <section>\nC) <div>');
+    } finally {
+      setAiTutorLoading(false);
+    }
+  };
+
   const isInstructor = can('learn:grade', { cohort: selectedCohort });
 
   const handleLessonToggle = (lessonId: string) => {
@@ -582,6 +640,59 @@ export default function LearnPage() {
                 ))}
               </div>
             )}
+
+            {/* AI Study Tutor Panel */}
+            <div className="p-4 rounded-2xl border border-primary/30 bg-primary/5 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="h-4 w-4 text-primary" />
+                  <h4 className="font-bold text-xs uppercase tracking-wider text-primary">
+                    AI Study Tutor (Grounded in this Lesson)
+                  </h4>
+                </div>
+                {isInstructor && (
+                  <button
+                    type="button"
+                    onClick={handleDraftQuiz}
+                    className="text-[11px] font-bold text-primary hover:underline"
+                  >
+                    Draft 5 Quiz Questions ✨
+                  </button>
+                )}
+              </div>
+
+              {aiQuizDraft && (
+                <div className="p-3 rounded-xl bg-card border border-border text-xs whitespace-pre-wrap font-mono text-muted-foreground animate-in fade-in">
+                  <span className="font-bold text-foreground block font-sans mb-1">Generated Quiz Draft:</span>
+                  {aiQuizDraft}
+                </div>
+              )}
+
+              <form onSubmit={handleAskTutor} className="flex gap-2">
+                <input
+                  type="text"
+                  value={aiTutorQuestion}
+                  onChange={(e) => setAiTutorQuestion(e.target.value)}
+                  placeholder="Ask a question or paste tricky code for a hint..."
+                  className="flex-1 rounded-xl border border-border bg-card px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+                <button
+                  type="submit"
+                  disabled={aiTutorLoading || !aiTutorQuestion}
+                  className="px-4 py-2 rounded-xl bg-primary text-primary-foreground font-bold text-xs hover:bg-primary/90 transition disabled:opacity-50"
+                >
+                  {aiTutorLoading ? 'Thinking...' : 'Ask Tutor'}
+                </button>
+              </form>
+
+              {aiTutorAnswer && (
+                <div className="p-3 rounded-xl bg-card border border-border text-xs text-muted-foreground space-y-1 animate-in fade-in">
+                  <span className="font-bold text-foreground">Tutor Guidance:</span>
+                  <p className="leading-relaxed whitespace-pre-wrap">{aiTutorAnswer}</p>
+                  <span className="text-[10px] text-primary block pt-0.5">Generated with AI — review before using</span>
+                </div>
+              )}
+            </div>
 
             <div className="flex items-center justify-between pt-3 border-t border-border">
               <button

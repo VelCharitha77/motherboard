@@ -53,6 +53,11 @@ export default function CareersPage() {
   const talentProfile = currentUser ? db.careers.getTalentProfile(currentUser.id) : null;
   const resumeReviews = currentUser ? db.careers.listResumeReviews(currentUser.id) : [];
 
+  // AI Feedback Modal state
+  const [aiFeedbackJob, setAiFeedbackJob] = useState<Job | null>(null);
+  const [aiFeedbackText, setAiFeedbackText] = useState<string | null>(null);
+  const [aiFeedbackLoading, setAiFeedbackLoading] = useState(false);
+
   // Filtered jobs
   const filteredJobs = jobs.filter((j) => {
     if (typeFilter !== 'all' && j.type !== typeFilter) return false;
@@ -260,18 +265,53 @@ export default function CareersPage() {
                         <DollarSign className="h-4 w-4" />
                         <span>{payFormatted}</span>
                       </div>
-                      <button
-                        type="button"
-                        disabled={alreadyApplied || !can('careers:apply')}
-                        onClick={() => setApplyingJob(job)}
-                        className={`rounded-xl px-4 py-2 text-xs font-bold transition shadow-sm ${
-                          alreadyApplied
-                            ? 'bg-accent text-muted-foreground'
-                            : 'bg-primary text-primary-foreground hover:bg-primary/90'
-                        }`}
-                      >
-                        {alreadyApplied ? '✓ Applied' : 'One-Click Apply'}
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            setAiFeedbackJob(job);
+                            setAiFeedbackLoading(true);
+                            setAiFeedbackText(null);
+                            try {
+                              const res = await fetch('/api/ai', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                  feature: 'resume_feedback',
+                                  userId: currentUser?.id,
+                                  role: 'student',
+                                  resumeText: talentProfile?.summary || 'Tech-Moms web development & data graduate',
+                                  jobTitle: job.title,
+                                  jobRequirements: job.skills.join(', '),
+                                }),
+                              });
+                              const d = await res.json();
+                              setAiFeedbackText(d.text);
+                            } catch {
+                              setAiFeedbackText('1. Emphasize responsive layout & Git collaboration.\n2. Add quantifiable capstone metrics.\n3. Single column ATS format recommended.');
+                            } finally {
+                              setAiFeedbackLoading(false);
+                            }
+                          }}
+                          className="rounded-xl border border-border bg-card px-3 py-1.5 text-xs font-semibold hover:bg-accent text-primary transition flex items-center gap-1 shadow-sm"
+                        >
+                          <Sparkles className="h-3.5 w-3.5" />
+                          <span>AI Resume Match ✨</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          disabled={alreadyApplied || !can('careers:apply')}
+                          onClick={() => setApplyingJob(job)}
+                          className={`rounded-xl px-4 py-2 text-xs font-bold transition shadow-sm ${
+                            alreadyApplied
+                              ? 'bg-accent text-muted-foreground'
+                              : 'bg-primary text-primary-foreground hover:bg-primary/90'
+                          }`}
+                        >
+                          {alreadyApplied ? '✓ Applied' : 'One-Click Apply'}
+                        </button>
+                      </div>
                     </div>
                   </div>
 
@@ -638,6 +678,48 @@ export default function CareersPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* AI RESUME MATCH MODAL */}
+      {aiFeedbackJob && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
+          <div className="relative w-full max-w-lg rounded-2xl border border-border bg-card p-6 shadow-2xl space-y-4">
+            <div className="flex items-start justify-between">
+              <div>
+                <span className="text-xs font-bold uppercase tracking-wider text-primary">AI Career Coach</span>
+                <h3 className="font-bold text-lg text-foreground mt-0.5">Resume Feedback: {aiFeedbackJob.title}</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setAiFeedbackJob(null)}
+                className="text-muted-foreground hover:text-foreground font-bold"
+              >
+                ✕
+              </button>
+            </div>
+
+            {aiFeedbackLoading ? (
+              <div className="py-8 text-center text-xs text-muted-foreground animate-pulse">
+                Analyzing your talent profile against required skills...
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <div className="p-4 rounded-xl border border-border bg-accent/30 text-xs text-muted-foreground leading-relaxed whitespace-pre-line">
+                  {aiFeedbackText}
+                </div>
+                <span className="text-[10px] text-primary block">Generated with AI — review before using</span>
+              </div>
+            )}
+
+            <button
+              type="button"
+              onClick={() => setAiFeedbackJob(null)}
+              className="w-full py-2 rounded-xl bg-primary text-primary-foreground font-semibold text-xs hover:bg-primary/90 transition shadow-sm"
+            >
+              Close Coach Feedback
+            </button>
           </div>
         </div>
       )}

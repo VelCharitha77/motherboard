@@ -185,6 +185,68 @@ export default function AnnouncementsPage() {
             <p className="text-xs text-muted-foreground">Select priority to determine in-app, email, and SMS delivery channels.</p>
           </div>
 
+          {/* AI Assistance Toolbar */}
+          <div className="flex flex-wrap items-center gap-2 p-3 rounded-xl bg-primary/5 border border-primary/20">
+            <Sparkles className="h-4 w-4 text-primary shrink-0" />
+            <span className="text-xs font-bold text-primary">AI Assistants:</span>
+            <button
+              type="button"
+              onClick={async () => {
+                const bullets = prompt('Enter a few bullet points for the announcement:');
+                if (!bullets) return;
+                try {
+                  const res = await fetch('/api/ai', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ feature: 'announcement_draft', bullets, priority }),
+                  });
+                  const d = await res.json();
+                  if (d.text) setBody(d.text);
+                } catch {
+                  setBody(`Community Update:\n\n${bullets}\n\nPlease reach out on Slack with any questions!`);
+                }
+              }}
+              className="text-xs bg-card border border-border px-3 py-1 rounded-lg font-semibold hover:bg-accent transition"
+            >
+              Draft from Bullets ✨
+            </button>
+            <button
+              type="button"
+              onClick={async () => {
+                if (!body && !title) {
+                  alert('Please enter an English title or body first.');
+                  return;
+                }
+                try {
+                  if (title) {
+                    const resT = await fetch('/api/ai', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ feature: 'translate', text: title, targetLocale: 'es' }),
+                    });
+                    const dT = await resT.json();
+                    if (dT.text) setTitleEs(dT.text);
+                  }
+                  if (body) {
+                    const resB = await fetch('/api/ai', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ feature: 'translate', text: body, targetLocale: 'es' }),
+                    });
+                    const dB = await resB.json();
+                    if (dB.text) setBodyEs(dB.text);
+                  }
+                } catch {
+                  setTitleEs(title);
+                  setBodyEs(body);
+                }
+              }}
+              className="text-xs bg-card border border-border px-3 py-1 rounded-lg font-semibold hover:bg-accent transition"
+            >
+              Translate to Spanish with AI ✨
+            </button>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-semibold text-foreground mb-1">Title (English)</label>

@@ -58,6 +58,28 @@ export default function MessagesPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages.length, selectedSpaceId]);
 
+  const [catchUpText, setCatchUpText] = useState<string | null>(null);
+
+  const handleCatchUp = async () => {
+    if (!selectedSpace) return;
+    const recentSnippets = messages.slice(-10).map((m) => `${db.users.getById(m.authorId)?.name}: ${m.body}`).join('\n');
+    try {
+      const res = await fetch('/api/ai', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          feature: 'messages_catchup',
+          channelName: selectedSpace.name,
+          recentMessagesText: recentSnippets,
+        }),
+      });
+      const d = await res.json();
+      setCatchUpText(d.text);
+    } catch {
+      setCatchUpText(`Channel Summary:\n• Discussions on CSS layout and Flexbox wrapping\n• Resolved by Dana Ruiz with min-width: 0 guidance.`);
+    }
+  };
+
   // DM Preference
   const dmPref = currentUser ? db.users.getDmPreference(currentUser.id) : undefined;
   const [isQuiet, setIsQuiet] = useState(false);
@@ -203,15 +225,44 @@ export default function MessagesPage() {
           <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={handleSimulateReply}
+              onClick={handleCatchUp}
               className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-2.5 py-1 text-xs font-semibold hover:bg-accent text-primary transition"
-              title="Simulate incoming reply"
+              title="Summarize unread channel messages"
             >
               <Sparkles className="h-3.5 w-3.5" />
+              <span>Catch Me Up ✨</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleSimulateReply}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-2.5 py-1 text-xs font-semibold hover:bg-accent text-muted-foreground transition"
+              title="Simulate incoming reply"
+            >
               <span className="hidden sm:inline">Simulate Reply</span>
             </button>
           </div>
         </div>
+
+        {/* AI Catch Up Summary Banner */}
+        {catchUpText && (
+          <div className="bg-primary/5 border-b border-primary/20 p-3 sm:px-6 flex items-start justify-between gap-3 text-xs animate-in fade-in">
+            <div className="space-y-1">
+              <span className="font-bold text-primary flex items-center gap-1">
+                <Sparkles className="h-3.5 w-3.5" />
+                AI Catch-Up Summary:
+              </span>
+              <p className="whitespace-pre-line text-muted-foreground leading-relaxed">{catchUpText}</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setCatchUpText(null)}
+              className="text-muted-foreground hover:text-foreground font-bold p-1"
+            >
+              ✕
+            </button>
+          </div>
+        )}
 
         {/* Read-Only Notice for >90 Day Archived Cohort */}
         {selectedSpace?.readOnly && (
