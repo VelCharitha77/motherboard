@@ -1,11 +1,12 @@
 'use client';
 
 import React, { useState } from 'react';
-import Link from 'next/router';
 import NextLink from 'next/link';
+import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/lib/auth/context';
 import { useI18n } from '@/lib/i18n/context';
 import { db } from '@/lib/data';
+import { can as canHelper, PermissionAction } from '@/lib/auth/permissions';
 import {
   Bell,
   Globe,
@@ -18,7 +19,24 @@ import {
   ShieldAlert,
 } from 'lucide-react';
 
+function getRequiredPermissionForPath(pathname: string | null): PermissionAction | null {
+  if (!pathname) return null;
+  if (pathname.startsWith('/staff')) return 'nav:staff';
+  if (pathname.startsWith('/employer')) return 'nav:employer';
+  if (pathname.startsWith('/sponsor')) return 'nav:sponsor';
+  if (pathname.startsWith('/funding/my')) return 'nav:funding_my';
+  if (pathname.startsWith('/help')) return 'nav:help';
+  if (pathname.startsWith('/learn') || pathname.startsWith('/roadmap')) return 'nav:learn';
+  if (pathname.startsWith('/messages')) return 'nav:messages';
+  if (pathname.startsWith('/projects')) return 'nav:projects';
+  if (pathname.startsWith('/careers')) return 'nav:careers';
+  if (pathname.startsWith('/home')) return 'nav:home';
+  return null;
+}
+
 export function TopBar() {
+  const router = useRouter();
+  const pathname = usePathname();
   const { currentUser, isGuest, featuredPersonas, switchUser } = useAuth();
   const { locale, setLocale, t } = useI18n();
   const [personaMenuOpen, setPersonaMenuOpen] = useState(false);
@@ -29,6 +47,26 @@ export function TopBar() {
   const notifications = currentUser ? db.notifications.listForUser(currentUser.id) : [];
   const unreadNotifs = notifications.filter((n) => !n.readAt);
   const outboxCount = db.outbox.list().length;
+
+  const handleSelectPersona = (targetId: string | null) => {
+    switchUser(targetId);
+    setPersonaMenuOpen(false);
+
+    if (targetId === null) {
+      if (pathname !== '/give' && pathname !== '/find-your-path') {
+        router.push('/give');
+      }
+    } else {
+      const targetUser = db.users.getById(targetId);
+      const reqPerm = getRequiredPermissionForPath(pathname);
+      if (reqPerm) {
+        const canView = canHelper(targetUser, reqPerm, { state: db.getStateSnapshot() });
+        if (!canView) {
+          router.push('/home');
+        }
+      }
+    }
+  };
 
   const handleResetData = () => {
     db.resetDemoData();
@@ -79,9 +117,9 @@ export function TopBar() {
 
             {personaMenuOpen && (
               <>
-                <div className="fixed inset-0 z-40" onClick={() => setPersonaMenuOpen(false)} />
-                <div className="absolute right-0 mt-2 z-50 w-80 sm:w-96 rounded-xl border border-border bg-popover p-2 shadow-xl">
-                  <div className="px-3 py-2 border-b border-border text-xs font-semibold uppercase text-muted-foreground tracking-wider">
+                <div className="fixed inset-0 z-[80] bg-black/30 backdrop-blur-[1px]" onClick={() => setPersonaMenuOpen(false)} />
+                <div className="absolute right-0 mt-2 z-[90] w-80 sm:w-96 rounded-2xl border-2 border-border bg-card p-2.5 shadow-2xl">
+                  <div className="px-3 py-2 border-b border-border text-xs font-bold uppercase text-primary tracking-wider">
                     Select Demo Persona
                   </div>
                   <div className="max-h-96 overflow-y-auto py-1 divide-y divide-border/40">
@@ -91,12 +129,9 @@ export function TopBar() {
                         <button
                           key={persona.id}
                           type="button"
-                          onClick={() => {
-                            switchUser(persona.id);
-                            setPersonaMenuOpen(false);
-                          }}
-                          className={`w-full text-left px-3 py-2.5 rounded-lg flex items-start gap-3 transition hover:bg-accent ${
-                            active ? 'bg-primary/10 text-primary' : ''
+                          onClick={() => handleSelectPersona(persona.id)}
+                          className={`w-full text-left px-3 py-2.5 rounded-xl flex items-start gap-3 transition hover:bg-accent/80 ${
+                            active ? 'bg-primary/10 text-primary font-bold' : ''
                           }`}
                         >
                           <div className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-white text-xs font-bold ${persona.avatarColor}`}>
@@ -118,12 +153,9 @@ export function TopBar() {
                     {/* Guest Donor Option */}
                     <button
                       type="button"
-                      onClick={() => {
-                        switchUser(null);
-                        setPersonaMenuOpen(false);
-                      }}
-                      className={`w-full text-left px-3 py-2.5 rounded-lg flex items-start gap-3 transition hover:bg-accent ${
-                        isGuest ? 'bg-amber-500/10 text-amber-600' : ''
+                      onClick={() => handleSelectPersona(null)}
+                      className={`w-full text-left px-3 py-2.5 rounded-xl flex items-start gap-3 transition hover:bg-accent/80 ${
+                        isGuest ? 'bg-amber-500/10 text-amber-600 font-bold' : ''
                       }`}
                     >
                       <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-amber-500 text-white text-xs font-bold">
@@ -191,8 +223,8 @@ export function TopBar() {
 
             {notifOpen && (
               <>
-                <div className="fixed inset-0 z-40" onClick={() => setNotifOpen(false)} />
-                <div className="absolute right-0 mt-2 z-50 w-80 sm:w-96 rounded-xl border border-border bg-popover p-3 shadow-xl">
+                <div className="fixed inset-0 z-[80] bg-black/30 backdrop-blur-[1px]" onClick={() => setNotifOpen(false)} />
+                <div className="absolute right-0 mt-2 z-[90] w-80 sm:w-96 rounded-2xl border-2 border-border bg-card p-3 shadow-2xl">
                   <div className="flex items-center justify-between pb-2 border-b border-border">
                     <span className="font-semibold text-sm">Notifications</span>
                     {currentUser && (
@@ -255,8 +287,8 @@ export function TopBar() {
 
             {userMenuOpen && (
               <>
-                <div className="fixed inset-0 z-40" onClick={() => setUserMenuOpen(false)} />
-                <div className="absolute right-0 mt-2 z-50 w-64 rounded-xl border border-border bg-popover p-2 shadow-xl">
+                <div className="fixed inset-0 z-[80] bg-black/30 backdrop-blur-[1px]" onClick={() => setUserMenuOpen(false)} />
+                <div className="absolute right-0 mt-2 z-[90] w-64 rounded-2xl border-2 border-border bg-card p-2.5 shadow-2xl">
                   <div className="px-3 py-2 border-b border-border">
                     <p className="font-semibold text-sm truncate">{currentUser?.name ?? 'Guest Donor'}</p>
                     <p className="text-xs text-muted-foreground truncate">{currentUser?.email ?? 'No login active'}</p>

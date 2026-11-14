@@ -82,8 +82,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         can,
       }}
     >
-      {/* key dbVersion to trigger clean re-renders on mutations */}
-      <div key={dbVersion} className="contents">
+      <div className="contents">
         {children}
       </div>
     </AuthContext.Provider>

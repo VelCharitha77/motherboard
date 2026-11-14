@@ -47,6 +47,17 @@ export default function MessagesPage() {
   const [newSubchannelName, setNewSubchannelName] = useState('');
   const [newSubchannelDesc, setNewSubchannelDesc] = useState('');
 
+  const [, setDbVersion] = useState(0);
+  const messagesEndRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    return db.subscribe(() => setDbVersion((v) => v + 1));
+  }, []);
+
+  React.useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages.length, selectedSpaceId]);
+
   // DM Preference
   const dmPref = currentUser ? db.users.getDmPreference(currentUser.id) : undefined;
   const [isQuiet, setIsQuiet] = useState(false);
@@ -310,6 +321,7 @@ export default function MessagesPage() {
               );
             })
           )}
+          <div ref={messagesEndRef} />
         </div>
 
         {/* Message Input Bar (Disabled if read-only) */}
