@@ -20,9 +20,7 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col antialiased bg-background text-foreground">
         <I18nProvider>
           <AuthProvider>
-            <Suspense fallback={<div className="p-8 text-center text-sm text-muted-foreground">Loading Motherboard...</div>}>
-              <AppShell>{children}</AppShell>
-            </Suspense>
+            <AppShell>{children}</AppShell>
           </AuthProvider>
         </I18nProvider>
       </body>

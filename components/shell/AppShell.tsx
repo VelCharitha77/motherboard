@@ -6,30 +6,12 @@ import { Sidebar } from './Sidebar';
 import { useAuth } from '@/lib/auth/context';
 import { useI18n } from '@/lib/i18n/context';
 import { db } from '@/lib/data';
-import { AlertTriangle, CheckCircle2, ShieldAlert } from 'lucide-react';
+import { AlertTriangle, CheckCircle2 } from 'lucide-react';
 import NextLink from 'next/link';
-import { usePathname } from 'next/navigation';
 
 export function AppShell({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname();
-  const { currentUser, isGuest, can } = useAuth();
+  const { currentUser } = useAuth();
   const { locale, t } = useI18n();
-
-  // Check if active user has permission for the current route
-  const isAllowed = React.useMemo(() => {
-    if (!pathname) return true;
-    if (pathname.startsWith('/staff')) return can('nav:staff');
-    if (pathname.startsWith('/employer')) return can('nav:employer');
-    if (pathname.startsWith('/sponsor')) return can('nav:sponsor');
-    if (pathname.startsWith('/funding/my')) return can('nav:funding_my');
-    if (pathname.startsWith('/help')) return can('nav:help');
-    if (pathname.startsWith('/learn') || pathname.startsWith('/roadmap')) return can('nav:learn');
-    if (pathname.startsWith('/messages')) return can('nav:messages');
-    if (pathname.startsWith('/projects')) return can('nav:projects');
-    if (pathname.startsWith('/careers')) return can('nav:careers');
-    if (pathname.startsWith('/home') && isGuest) return false;
-    return true;
-  }, [pathname, isGuest, can]);
 
   // Check for any unacknowledged urgent announcements for the active user
   const urgentAnnouncements = db.announcements.list().filter((a) => {
@@ -84,29 +66,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <Sidebar />
         </Suspense>
         <main className="flex-1 min-w-0 p-4 sm:p-6 lg:p-8 pb-20 md:pb-8">
-          <div className="max-w-7xl mx-auto">
-            {!isAllowed ? (
-              <div className="rounded-3xl border-2 border-border bg-card p-8 sm:p-12 text-center space-y-4 max-w-lg mx-auto my-12 shadow-xl animate-in fade-in">
-                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-600">
-                  <ShieldAlert className="h-8 w-8" />
-                </div>
-                <h2 className="text-xl font-bold text-foreground">Access Restricted</h2>
-                <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
-                  Your current persona does not have permission to access this module. Please switch to an authorized role in the top bar.
-                </p>
-                <div className="pt-2">
-                  <NextLink
-                    href={isGuest ? '/give' : '/home'}
-                    className="inline-flex items-center gap-2 rounded-xl bg-primary text-primary-foreground font-semibold text-xs px-5 py-2.5 hover:bg-primary/90 transition shadow-sm"
-                  >
-                    <span>Return to {isGuest ? 'Public Funding Board' : 'Dashboard'}</span>
-                  </NextLink>
-                </div>
-              </div>
-            ) : (
-              children
-            )}
-          </div>
+          <div className="max-w-7xl mx-auto">{children}</div>
         </main>
       </div>
     </div>

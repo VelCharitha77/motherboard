@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import NextLink from 'next/link';
-import { useRouter, usePathname } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth/context';
 import { useI18n } from '@/lib/i18n/context';
 import { db } from '@/lib/data';
@@ -36,7 +36,6 @@ function getRequiredPermissionForPath(pathname: string | null): PermissionAction
 
 export function TopBar() {
   const router = useRouter();
-  const pathname = usePathname();
   const { currentUser, isGuest, featuredPersonas, switchUser } = useAuth();
   const { locale, setLocale, t } = useI18n();
   const [personaMenuOpen, setPersonaMenuOpen] = useState(false);
@@ -52,13 +51,15 @@ export function TopBar() {
     switchUser(targetId);
     setPersonaMenuOpen(false);
 
+    const currentPath = typeof window !== 'undefined' ? window.location.pathname : '/';
+
     if (targetId === null) {
-      if (pathname !== '/give' && pathname !== '/find-your-path') {
+      if (currentPath !== '/give' && currentPath !== '/find-your-path') {
         router.push('/give');
       }
     } else {
       const targetUser = db.users.getById(targetId);
-      const reqPerm = getRequiredPermissionForPath(pathname);
+      const reqPerm = getRequiredPermissionForPath(currentPath);
       if (reqPerm) {
         const canView = canHelper(targetUser, reqPerm, { state: db.getStateSnapshot() });
         if (!canView) {
